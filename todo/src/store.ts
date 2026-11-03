@@ -82,7 +82,7 @@ export class TodoStore {
   }
 
   /** Add a todo at the top; ignore blank (after trim) titles. */
-  add(title: string): void {
+  add = (title: string): void => {
     const trimmed = title.trim()
     if (!trimmed) return
     this.state.items.unshift({
@@ -94,7 +94,7 @@ export class TodoStore {
     this.save()
   }
 
-  toggle(id: string): void {
+  toggle = (id: string): void => {
     const todo = this.state.items.find((item) => item.id === id)
     if (!todo) return
     todo.done = !todo.done
@@ -102,7 +102,7 @@ export class TodoStore {
   }
 
   /** Rename a todo; a blank (after trim) title deletes it instead. */
-  rename(id: string, title: string): void {
+  rename = (id: string, title: string): void => {
     const trimmed = title.trim()
     if (!trimmed) {
       this.remove(id)
@@ -114,7 +114,7 @@ export class TodoStore {
     this.save()
   }
 
-  remove(id: string): void {
+  remove = (id: string): void => {
     const index = this.state.items.findIndex((item) => item.id === id)
     if (index === -1) return
     const [removed] = this.state.items.splice(index, 1)
@@ -123,7 +123,7 @@ export class TodoStore {
   }
 
   /** Remove every completed todo; the whole operation counts as one deletion. */
-  clearDone(): void {
+  clearDone = (): void => {
     const entries: UndoEntry[] = []
     const remaining: Todo[] = []
     this.state.items.forEach((todo, index) => {
@@ -140,7 +140,7 @@ export class TodoStore {
   }
 
   /** Restore the most recent deletion back to its original position. */
-  undo(): void {
+  undo = (): void => {
     const entries = this.state.undo
     if (!entries) return
     const ordered = [...entries].sort((a, b) => a.index - b.index)
@@ -151,12 +151,12 @@ export class TodoStore {
     this.save()
   }
 
-  dismissUndo(): void {
+  dismissUndo = (): void => {
     this.state.undo = null
   }
 
   /** Move the todo at `fromIndex` to `toIndex` (manual reordering). */
-  move(fromIndex: number, toIndex: number): void {
+  move = (fromIndex: number, toIndex: number): void => {
     const items = this.state.items
     if (fromIndex < 0 || fromIndex >= items.length) return
     if (toIndex < 0 || toIndex >= items.length) return
@@ -166,7 +166,7 @@ export class TodoStore {
     this.save()
   }
 
-  setFilter(filter: Filter): void {
+  setFilter = (filter: Filter): void => {
     this.state.filter = filter
   }
 

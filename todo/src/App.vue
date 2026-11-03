@@ -17,11 +17,11 @@ const visibleItems = computed<Todo[]>(() => {
 })
 
 // vuedraggable 直接改绑定的数组；用镜像数组做拖拽，落点再通过 store.move 写回，
-// 保证 store 是唯一数据源。
+// 保证 store 是唯一数据源。展开成新数组，确保列表内容变化时（新增/删除/排序）一定触发同步。
 watch(
-  visibleItems,
+  () => [...visibleItems.value],
   (items) => {
-    if (!dragActive.value) dragItems.value = [...items]
+    if (!dragActive.value) dragItems.value = items
   },
   { immediate: true },
 )
@@ -119,7 +119,7 @@ onBeforeUnmount(clearUndoTimer)
       tag="ul"
       item-key="id"
       aria-label="待办列表"
-      :disabled="store.state.filter !== 'all'"
+      :disabled="store.state.filter !== 'all' || editingId !== null"
       :animation="150"
       :delay="150"
       :delay-on-touch-only="true"
