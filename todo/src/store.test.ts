@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createTodoStore, STORAGE_KEY, type Todo, type TodoStorage } from './store'
+import { STORAGE_KEY, TodoStore, type Todo, type TodoStorage } from './store'
 
 interface FakeStorage extends TodoStorage {
   removeItem(key: string): void
@@ -30,7 +30,7 @@ function setup(initialItems: Todo[] = []) {
   const { storage, map } = makeStorage(
     initialItems.length > 0 ? { [STORAGE_KEY]: JSON.stringify(initialItems) } : {},
   )
-  const store = createTodoStore(storage)
+  const store = new TodoStore(storage)
   return { store, map }
 }
 
@@ -167,6 +167,18 @@ describe('undo', () => {
     expect(titles(store)).toEqual(['a', 'b', 'c', 'd'])
   })
 
+  it('restores a clearDone batch when every todo was done', () => {
+    const { store } = setup([
+      { id: 'id-0', title: 'a', done: true, createdAt: 0 },
+      { id: 'id-1', title: 'b', done: true, createdAt: 1 },
+      { id: 'id-2', title: 'c', done: true, createdAt: 2 },
+    ])
+    store.clearDone()
+    expect(store.state.items).toEqual([])
+    store.undo()
+    expect(titles(store)).toEqual(['a', 'b', 'c'])
+  })
+
   it('keeps only the most recent deletion undoable', () => {
     const { store } = setup(seed('a', 'b', 'c'))
     store.remove('id-0')
@@ -235,11 +247,11 @@ describe('persistence', () => {
 
   it('restores items in order from storage', () => {
     const { storage } = makeStorage()
-    const first = createTodoStore(storage)
+    const first = new TodoStore(storage)
     first.add('a')
     first.add('b')
     first.toggle(first.state.items[1].id)
-    const second = createTodoStore(storage)
+    const second = new TodoStore(storage)
     expect(titles(second)).toEqual(['b', 'a'])
     expect(second.state.items[1].done).toBe(true)
   })
@@ -247,14 +259,14 @@ describe('persistence', () => {
   it('falls back to an empty list on corrupted JSON', () => {
     const { store } = setup()
     const { storage } = makeStorage({ [STORAGE_KEY]: '{not json' })
-    const fresh = createTodoStore(storage)
+    const fresh = new TodoStore(storage)
     expect(fresh.state.items).toEqual([])
     expect(store.state.items).toEqual([])
   })
 
   it('falls back to an empty list on structurally invalid data', () => {
     const { storage } = makeStorage({ [STORAGE_KEY]: JSON.stringify([{ id: 1, title: 'x' }]) })
-    const fresh = createTodoStore(storage)
+    const fresh = new TodoStore(storage)
     expect(fresh.state.items).toEqual([])
   })
 
@@ -265,7 +277,7 @@ describe('persistence', () => {
       },
       setItem: () => undefined,
     }
-    const store = createTodoStore(throwing)
+    const store = new TodoStore(throwing)
     expect(store.state.items).toEqual([])
     store.add('a')
     expect(titles(store)).toEqual(['a'])
@@ -273,7 +285,7 @@ describe('persistence', () => {
 
   it('keeps working when writing storage throws', () => {
     const { storage } = makeStorage()
-    const store = createTodoStore({
+    const store = new TodoStore({
       getItem: storage.getItem.bind(storage),
       setItem: () => {
         throw new Error('quota exceeded')

@@ -179,13 +179,9 @@ export class TodoStore {
   }
 }
 
-export function createTodoStore(storage: TodoStorage | null): TodoStore {
-  return new TodoStore(storage)
-}
-
 function browserStorage(): TodoStorage | null {
   if (typeof localStorage === 'undefined') return null
   return localStorage
 }
 
-export const store = createTodoStore(typeof document === 'undefined' ? null : browserStorage())
+export const store = new TodoStore(typeof document === 'undefined' ? null : browserStorage())
