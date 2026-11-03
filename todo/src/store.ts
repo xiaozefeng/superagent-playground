@@ -13,6 +13,10 @@ export interface UndoEntry {
   todo: Todo
   /** Position of the todo in the list right before it was removed. */
   index: number
+  /** Id of the neighbour that preceded it at removal time, when any. */
+  prevId: string | null
+  /** Id of the neighbour that followed it at removal time, when any. */
+  nextId: string | null
 }
 
 export interface TodoStorage {
@@ -117,8 +121,9 @@ export class TodoStore {
   remove = (id: string): void => {
     const index = this.state.items.findIndex((item) => item.id === id)
     if (index === -1) return
-    const [removed] = this.state.items.splice(index, 1)
-    this.replaceUndo([{ todo: removed, index }])
+    const entry = this.entryFor(this.state.items[index], index)
+    this.state.items.splice(index, 1)
+    this.replaceUndo([entry])
     this.save()
   }
 
@@ -128,7 +133,7 @@ export class TodoStore {
     const remaining: Todo[] = []
     this.state.items.forEach((todo, index) => {
       if (todo.done) {
-        entries.push({ todo, index })
+        entries.push(this.entryFor(todo, index))
       } else {
         remaining.push(todo)
       }
@@ -139,13 +144,18 @@ export class TodoStore {
     this.save()
   }
 
-  /** Restore the most recent deletion back to its original position. */
+  /**
+   * Restore the most recent deletion. Each todo returns next to its
+   * original neighbours (after the one that preceded it, before the one
+   * that followed it), so an intervening reorder cannot strand it in a
+   * numeric slot that no longer matches its original place.
+   */
   undo = (): void => {
     const entries = this.state.undo
     if (!entries) return
     const ordered = [...entries].sort((a, b) => a.index - b.index)
     for (const entry of ordered) {
-      this.state.items.splice(Math.min(entry.index, this.state.items.length), 0, entry.todo)
+      this.state.items.splice(this.resolveRestoreIndex(entry), 0, entry.todo)
     }
     this.state.undo = null
     this.save()
@@ -174,14 +184,41 @@ export class TodoStore {
     this.state.undo = entries
   }
 
+  /** Capture the neighbours around `index` at removal time, for undo. */
+  private entryFor(todo: Todo, index: number): UndoEntry {
+    return {
+      todo,
+      index,
+      prevId: index > 0 ? (this.state.items[index - 1]?.id ?? null) : null,
+      nextId: index < this.state.items.length - 1 ? (this.state.items[index + 1]?.id ?? null) : null,
+    }
+  }
+
+  private resolveRestoreIndex(entry: UndoEntry): number {
+    if (entry.prevId !== null) {
+      const prevIndex = this.state.items.findIndex((item) => item.id === entry.prevId)
+      if (prevIndex !== -1) return prevIndex + 1
+    }
+    if (entry.nextId !== null) {
+      const nextIndex = this.state.items.findIndex((item) => item.id === entry.nextId)
+      if (nextIndex !== -1) return nextIndex
+    }
+    return Math.min(entry.index, this.state.items.length)
+  }
+
   private save(): void {
     persistTodos(this.storage, this.state.items)
   }
 }
 
 function browserStorage(): TodoStorage | null {
-  if (typeof localStorage === 'undefined') return null
-  return localStorage
+  if (typeof document === 'undefined') return null
+  try {
+    // A throwing accessor (e.g. Safari private mode) must not crash startup.
+    return globalThis.localStorage ?? null
+  } catch {
+    return null
+  }
 }
 
-export const store = new TodoStore(typeof document === 'undefined' ? null : browserStorage())
+export const store = new TodoStore(browserStorage())

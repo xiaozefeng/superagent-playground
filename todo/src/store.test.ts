@@ -34,7 +34,7 @@ function setup(initialItems: Todo[] = []) {
   return { store, map }
 }
 
-function titles(store: ReturnType<typeof setup>['store']): string[] {
+function titles(store: TodoStore): string[] {
   return store.state.items.map((item) => item.title)
 }
 
@@ -108,7 +108,14 @@ describe('remove', () => {
     const { store } = setup(seed('a', 'b', 'c'))
     store.remove('id-1')
     expect(titles(store)).toEqual(['a', 'c'])
-    expect(store.state.undo).toEqual([{ todo: { id: 'id-1', title: 'b', done: false, createdAt: 1 }, index: 1 }])
+    expect(store.state.undo).toEqual([
+      {
+        todo: { id: 'id-1', title: 'b', done: false, createdAt: 1 },
+        index: 1,
+        prevId: 'id-0',
+        nextId: 'id-2',
+      },
+    ])
   })
 
   it('ignores unknown ids without touching the undo state', () => {
@@ -145,13 +152,13 @@ describe('clearDone', () => {
 })
 
 describe('undo', () => {
-  it('restores a single deletion to its original position', () => {
+  it('restores a single deletion next to its original neighbours', () => {
     const { store } = setup(seed('a', 'b', 'c'))
     store.remove('id-1')
-    store.add('d')
+    store.add('d') // [d, a, c]
     expect(titles(store)).toEqual(['d', 'a', 'c'])
     store.undo()
-    expect(titles(store)).toEqual(['d', 'b', 'a', 'c'])
+    expect(titles(store)).toEqual(['d', 'a', 'b', 'c'])
     expect(store.state.undo).toBeNull()
   })
 
@@ -177,6 +184,14 @@ describe('undo', () => {
     expect(store.state.items).toEqual([])
     store.undo()
     expect(titles(store)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('returns a todo to its original place even if the list was reordered in between', () => {
+    const { store } = setup(seed('a', 'b', 'c'))
+    store.remove('id-1')
+    store.move(1, 0) // now [c, a]
+    store.undo()
+    expect(titles(store)).toEqual(['c', 'a', 'b'])
   })
 
   it('keeps only the most recent deletion undoable', () => {
