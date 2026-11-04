@@ -9,6 +9,17 @@ export interface Todo {
 
 export type Filter = 'all' | 'active' | 'done'
 
+/** Todos shown for a filter, then narrowed to titles containing `query` (trimmed, case-insensitive). */
+export function visibleTodos(items: Todo[], filter: Filter, query: string): Todo[] {
+  const filtered =
+    filter === 'active' ? items.filter((item) => !item.done)
+    : filter === 'done' ? items.filter((item) => item.done)
+    : items
+  const needle = query.trim().toLowerCase()
+  if (!needle) return filtered
+  return filtered.filter((item) => item.title.toLowerCase().includes(needle))
+}
+
 export interface UndoEntry {
   todo: Todo
   /** Position of the todo in the list right before it was removed. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STORAGE_KEY, TodoStore, type Todo, type TodoStorage } from './store'
+import { STORAGE_KEY, TodoStore, visibleTodos, type Todo, type TodoStorage } from './store'
 
 interface FakeStorage extends TodoStorage {
   removeItem(key: string): void
@@ -326,5 +326,28 @@ describe('filter', () => {
     const saved = JSON.parse(map.get(STORAGE_KEY)!)
     expect(saved).toEqual([expect.objectContaining({ title: 'a' })])
     expect(saved).toHaveLength(1)
+  })
+})
+
+describe('visibleTodos', () => {
+  const items: Todo[] = [
+    { id: '1', title: 'xabcx', done: false, createdAt: 1 },
+    { id: '2', title: 'ABC done', done: true, createdAt: 2 },
+    { id: '3', title: 'other', done: false, createdAt: 3 },
+  ]
+  const ids = (todos: Todo[]) => todos.map((todo) => todo.id)
+
+  it('matches substrings case-insensitively, ignoring surrounding spaces', () => {
+    expect(ids(visibleTodos(items, 'all', '  ABC '))).toEqual(['1', '2'])
+  })
+
+  it('applies the filter before the query', () => {
+    expect(ids(visibleTodos(items, 'active', 'abc'))).toEqual(['1'])
+    expect(ids(visibleTodos(items, 'done', 'other'))).toEqual([])
+  })
+
+  it('returns the filtered list for a blank query', () => {
+    expect(visibleTodos(items, 'all', '   ')).toBe(items)
+    expect(ids(visibleTodos(items, 'active', ''))).toEqual(['1', '3'])
   })
 })

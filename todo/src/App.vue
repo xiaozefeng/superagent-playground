@@ -2,19 +2,19 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import draggable from 'vuedraggable'
 import TodoItem from './TodoItem.vue'
-import { store, type Filter, type Todo } from './store'
+import { store, visibleTodos, type Filter, type Todo } from './store'
 
 const newTitle = ref('')
 const editingId = ref<string | null>(null)
 const dragActive = ref(false)
 const dragItems = ref<Todo[]>([])
+// 搜索词只存在于页面内存，不写入 storage，刷新即清空。
+const query = ref('')
+const searching = computed(() => query.value.trim() !== '')
 
-const visibleItems = computed<Todo[]>(() => {
-  const filter = store.state.filter
-  if (filter === 'active') return store.state.items.filter((item) => !item.done)
-  if (filter === 'done') return store.state.items.filter((item) => item.done)
-  return store.state.items
-})
+const visibleItems = computed<Todo[]>(() =>
+  visibleTodos(store.state.items, store.state.filter, query.value),
+)
 
 // vuedraggable 直接改绑定的数组；用镜像数组做拖拽，落点再通过 store.move 写回，
 // 保证 store 是唯一数据源。展开成新数组，确保列表内容变化时（新增/删除/排序）一定触发同步。
@@ -113,13 +113,22 @@ onBeforeUnmount(clearUndoTimer)
       />
     </form>
 
+    <input
+      v-model="query"
+      class="search-input"
+      type="search"
+      placeholder="搜索标题"
+      aria-label="搜索待办"
+      autocomplete="off"
+    />
+
     <draggable
       v-model="dragItems"
       class="todo-list"
       tag="ul"
       item-key="id"
       aria-label="待办列表"
-      :disabled="store.state.filter !== 'all' || editingId !== null"
+      :disabled="store.state.filter !== 'all' || searching || editingId !== null"
       :animation="150"
       :delay="150"
       :delay-on-touch-only="true"
